@@ -44,3 +44,4 @@ targets:
     settings:
       CODE_SIGNING_ALLOWED: NO
       CODE_SIGN_STYLE: Manual
+      PRODUCT_BUNDLE_IDENTIFIER: com.kufei326.CallBlocker.Extension
