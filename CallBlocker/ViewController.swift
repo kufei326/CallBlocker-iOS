@@ -1,36 +1,101 @@
 import UIKit
 import CallKit
 
-class ViewController: UIViewController {
+class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
+
+    private let prefixTextField = UITextField()
+    private let starSegmentedControl = UISegmentedControl(items: ["1★", "2★", "3★", "4★", "5★", "6★"])
+    private let tableView = UITableView()
+    private var rules: [BlockRule] = []
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        title = "2200W 电话拦截"
         setupUI()
+        loadCurrentRules()
     }
 
     private func setupUI() {
-        view.backgroundColor = .white
-        let button = UIButton(frame: CGRect(x: 50, y: 200, width: 300, height: 50))
-        button.backgroundColor = .systemBlue
-        button.setTitle("应用 2200W 拦截规则", for: .normal)
-        button.addTarget(self, action: #selector(applyRules), for: .touchUpInside)
-        view.addSubview(button)
+        view.backgroundColor = .systemGroupedBackground
+        
+        // 前缀输入框
+        prefixTextField.placeholder = "输入前缀 (如 8610122)"
+        prefixTextField.borderStyle = .roundedRect
+        prefixTextField.keyboardType = .numberPad
+        prefixTextField.backgroundColor = .white
+        
+        // 星级选择
+        starSegmentedControl.selectedSegmentIndex = 4 // 默认 5 星
+        
+        // 添加按钮
+        let addButton = UIButton(type: .system)
+        addButton.setTitle("添加拦截规则", for: .normal)
+        addButton.backgroundColor = .systemBlue
+        addButton.setTitleColor(.white, for: .normal)
+        addButton.layer.cornerRadius = 8
+        addButton.addTarget(self, action: #selector(addRule), for: .touchUpInside)
+        
+        // 刷新系统按钮
+        let refreshButton = UIButton(type: .system)
+        refreshButton.setTitle("同步到系统系统", for: .normal)
+        refreshButton.setTitleColor(.systemRed, for: .normal)
+        refreshButton.addTarget(self, action: #selector(syncToSystem), for: .touchUpInside)
+
+        // 布局
+        let stackView = UIStackView(arrangedSubviews: [prefixTextField, starSegmentedControl, addButton, refreshButton])
+        stackView.axis = .vertical
+        stackView.spacing = 15
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(stackView)
+        
+        tableView.translatesAutoresizingMaskIntoConstraints = false
+        tableView.delegate = self
+        tableView.dataSource = self
+        tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+        view.addSubview(tableView)
+
+        NSLayoutConstraint.activate([
+            stackView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            stackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 20),
+            stackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -20),
+            
+            tableView.topAnchor.constraint(equalTo: stackView.bottomAnchor, constant: 20),
+            tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        ])
     }
 
-    @objc private func applyRules() {
-        // 示例：添加一个 6 星规则 (100万个号码)
-        // 8610122****** -> 8610122000000 到 8610122999999
-        let newRule = BlockRule(prefix: 8610122, starCount: 6)
-        RuleManager.shared.saveRules([newRule])
+    private func loadCurrentRules() {
+        rules = RuleManager.shared.loadRules()
+        tableView.reloadData()
+    }
+
+    @objc private func addRule() {
+        guard let text = prefixTextField.text, let prefix = Int64(text) else {
+            showAlert(title: "错误", message: "请输入正确的数字前缀")
+            return
+        }
         
-        // 通知系统刷新扩展
-        let extensionIdentifier = "com.yourname.app.CallBlockerExtension"
+        let stars = starSegmentedControl.selectedSegmentIndex + 1
+        let newRule = BlockRule(prefix: prefix, starCount: stars)
+        
+        rules.append(newRule)
+        RuleManager.shared.saveRules(rules)
+        tableView.reloadData()
+        prefixTextField.text = ""
+        prefixTextField.resignFirstResponder()
+    }
+
+    @objc private func syncToSystem() {
+        let extensionIdentifier = "com.kufei326.CallBlockerExtension"
+        
         CXCallDirectoryManager.sharedInstance.reloadExtension(withIdentifier: extensionIdentifier) { error in
             DispatchQueue.main.async {
                 if let error = error {
-                    self.showAlert(title: "失败", message: error.localizedDescription)
+                    self.showAlert(title: "同步失败", message: "错误代码: \(error.localizedDescription)\n\n可能原因:\n1. 请在系统设置-电话-来电阻止中开启权限\n2. 规则冲突或号码过多导致超时")
                 } else {
-                    self.showAlert(title: "成功", message: "规则已提交系统处理，请在系统设置中确保权限已开启")
+                    self.showAlert(title: "同步成功", message: "2200万级拦截库已生效")
                 }
             }
         }
@@ -40,5 +105,26 @@ class ViewController: UIViewController {
         let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "确定", style: .default))
         present(alert, animated: true)
+    }
+
+    // MARK: - TableView
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return rules.count
+    }
+
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath)
+        let rule = rules[indexPath.row]
+        let starStr = String(repeating: "★", count: rule.starCount)
+        cell.textLabel?.text = "拦截前缀: \(rule.prefix) (后缀: \(starStr))"
+        return cell
+    }
+    
+    func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        if editingStyle == .delete {
+            rules.remove(at: indexPath.row)
+            RuleManager.shared.saveRules(rules)
+            tableView.deleteRows(at: [indexPath], with: .fade)
+        }
     }
 }
