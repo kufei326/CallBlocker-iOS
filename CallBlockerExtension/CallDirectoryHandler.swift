@@ -6,17 +6,19 @@ class CallDirectoryHandler: CXCallDirectoryProvider {
     override func beginRequest(with context: CXCallDirectoryExtensionContext) {
         context.delegate = self
 
-        // 1. 获取规则
+        // 1. 获取用户定义的规则
         let rules = RuleManager.shared.loadRules()
-        let finalRanges = RuleManager.shared.mergeRules(rules)
-
-        // 2. 清空缓存（针对全量更新或逻辑同步重置）
+        
+        // 2. 将规则合并并全局排序（绝对升序保障）
+        let mergedRanges = RuleManager.shared.mergeRules(rules)
+        
+        // 3. 处理注入（针对全量模式清空，如果是增量模式则按逻辑操作）
         if context.isIncremental {
             context.removeAllBlockingEntries()
         }
-        
-        // 3. 逐个注入用户自己的号码
-        for range in finalRanges {
+
+        // 4. 正式注入号码
+        for range in mergedRanges {
             var current = range.lowerBound
             while current <= range.upperBound {
                 autoreleasepool {
@@ -32,7 +34,7 @@ class CallDirectoryHandler: CXCallDirectoryProvider {
 
 extension CallDirectoryHandler: CXCallDirectoryExtensionContextDelegate {
     func requestFailed(for extensionContext: CXCallDirectoryExtensionContext, withError error: Error) {
-        // 用于调试：如果同步失败，系统会走这里
-        print("Extension Sync Failed: \(error.localizedDescription)")
+        // 同步失败时的内部日志
+        NSLog("CallBlocker: 同步扩展时失败 - \(error.localizedDescription)")
     }
 }
