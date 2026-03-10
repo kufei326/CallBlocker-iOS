@@ -88,12 +88,16 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
     }
 
     @objc private func syncToSystem() {
-        let extensionIdentifier = "com.kufei326.CallBlockerExtension"
+        // 根据 Apple 的规则，Extension 的 ID 必须是 AppID 加 ".Extension"
+        let appBundleID = Bundle.main.bundleIdentifier ?? "com.kufei326.CallBlocker"
+        let extensionIdentifier = "\(appBundleID).Extension"
+        
+        print("正在尝试同步扩展: \(extensionIdentifier)")
         
         CXCallDirectoryManager.sharedInstance.reloadExtension(withIdentifier: extensionIdentifier) { error in
             DispatchQueue.main.async {
                 if let error = error {
-                    self.showAlert(title: "同步失败", message: "错误代码: \(error.localizedDescription)\n\n可能原因:\n1. 请在系统设置-电话-来电阻止中开启权限\n2. 规则冲突或号码过多导致超时")
+                    self.showAlert(title: "同步失败", message: "扩展ID: \(extensionIdentifier)\n错误: \(error.localizedDescription)\n\n请先去系统设置开启权限！")
                 } else {
                     self.showAlert(title: "同步成功", message: "2200万级拦截库已生效")
                 }
