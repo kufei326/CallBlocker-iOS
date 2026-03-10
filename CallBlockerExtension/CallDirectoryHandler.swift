@@ -1,47 +1,62 @@
 import CallKit
 import Foundation
 
-class CallDirectoryHandler: CXCallDirectoryProvider, CXCallDirectoryExtensionContextDelegate {
+class CallDirectoryHandler: CXCallDirectoryProvider {
 
     override func beginRequest(with context: CXCallDirectoryExtensionContext) {
         context.delegate = self
 
-        // 1. 从共享存储读取规则
+        // 1. 加载并合并规则
         let rules = RuleManager.shared.loadRules()
+        var allRanges = RuleManager.shared.mergeRules(rules)
         
-        // 2. 合并重叠规则以确保升序和唯一性
-        let mergedRanges = RuleManager.shared.mergeRules(rules)
+        // 2. 加入硬编码调试号并重新全局排序（解决升序错误）
+        let debugNumber: Int64 = 86123456789
+        allRanges.append(debugNumber...debugNumber)
         
-        // 3. 注入号码
-        // 如果系统支持增量更新，建议处理 context.isIncremental
-        // 这里演示全量注入，针对 2200 万数据进行了内存优化
+        // 重新排序并再次合并可能重叠的区间
+        let finalRanges = mergeRanges(allRanges)
+
+        // 3. 全量处理逻辑
         if context.isIncremental {
-            // 在实际大规模应用中，建议实现增量逻辑以节省时间
-            // 简单起见，这里先移除旧数据再重新添加
             context.removeAllBlockingEntries()
         }
         
-        addAllBlockingPhoneNumbers(to: context, ranges: mergedRanges)
-
-        context.completeRequest()
-    }
-
-    // 实现协议必需的方法
-    func requestFailed(for extensionContext: CXCallDirectoryExtensionContext, withError error: Error) {
-        // 在这里处理请求失败的情况，例如记录日志
-        print("Call Directory Extension request failed: \(error.localizedDescription)")
-    }
-
-    private func addAllBlockingPhoneNumbers(to context: CXCallDirectoryExtensionContext, ranges: [ClosedRange<Int64>]) {
-        for range in ranges {
+        // 4. 注入号码
+        for range in finalRanges {
             var currentNumber = range.lowerBound
             while currentNumber <= range.upperBound {
-                // 使用 autoreleasepool 防止内存随循环次数增加而爆炸
                 autoreleasepool {
                     context.addBlockingEntry(withNextSequentialPhoneNumber: currentNumber)
                 }
                 currentNumber += 1
             }
         }
+        
+        // 5. 正确调用完成回调
+        context.completeRequest(completionHandler: nil)
+    }
+    
+    // 内部辅助方法：确保所有区间合并且绝对升序
+    private func mergeRanges(_ ranges: [ClosedRange<Int64>]) -> [ClosedRange<Int64>] {
+        let sorted = ranges.sorted { $0.lowerBound < $1.lowerBound }
+        guard let first = sorted.first else { return [] }
+        var merged = [first]
+        for current in sorted.dropFirst() {
+            let last = merged.last!
+            if current.lowerBound <= last.upperBound + 1 {
+                let newUpper = max(last.upperBound, current.upperBound)
+                merged[merged.count - 1] = last.lowerBound...newUpper
+            } else {
+                merged.append(current)
+            }
+        }
+        return merged
+    }
+}
+
+extension CallDirectoryHandler: CXCallDirectoryExtensionContextDelegate {
+    func requestFailed(for extensionContext: CXCallDirectoryExtensionContext, withError error: Error) {
+        NSLog("CallDirectoryHandler Error: %@", error.localizedDescription)
     }
 }
