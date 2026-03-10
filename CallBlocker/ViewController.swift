@@ -26,7 +26,7 @@ class ViewController: UIViewController {
         // 通知系统刷新扩展
         let extensionIdentifier = "com.yourname.app.CallBlockerExtension"
         CXCallDirectoryManager.sharedInstance.reloadExtension(withIdentifier: extensionIdentifier) { error in
-            DispatchQueue.main.main.async {
+            DispatchQueue.main.async {
                 if let error = error {
                     self.showAlert(title: "失败", message: error.localizedDescription)
                 } else {

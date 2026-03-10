@@ -1,7 +1,7 @@
 import CallKit
 import Foundation
 
-class CallDirectoryHandler: CXCallDirectoryProvider {
+class CallDirectoryHandler: CXCallDirectoryProvider, CXCallDirectoryExtensionContextDelegate {
 
     override func beginRequest(with context: CXCallDirectoryExtensionContext) {
         context.delegate = self
