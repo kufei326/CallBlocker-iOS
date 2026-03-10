@@ -32,7 +32,7 @@ targets:
     info:
       path: CallBlockerExtension/Info.plist
       properties:
-        CFBundleIdentifier: com.kufei326.CallBlocker.Extension
+        CFBundleIdentifier: com.kufei326.CallBlockerExtension
         CFBundleName: CallBlockerExtension
         NSExtension:
           NSExtensionPointIdentifier: "com.apple.callkit.call-directory"

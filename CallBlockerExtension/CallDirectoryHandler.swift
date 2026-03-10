@@ -26,6 +26,12 @@ class CallDirectoryHandler: CXCallDirectoryProvider, CXCallDirectoryExtensionCon
         context.completeRequest()
     }
 
+    // 实现协议必需的方法
+    func requestFailed(for extensionContext: CXCallDirectoryExtensionContext, withError error: Error) {
+        // 在这里处理请求失败的情况，例如记录日志
+        print("Call Directory Extension request failed: \(error.localizedDescription)")
+    }
+
     private func addAllBlockingPhoneNumbers(to context: CXCallDirectoryExtensionContext, ranges: [ClosedRange<Int64>]) {
         for range in ranges {
             var currentNumber = range.lowerBound
