@@ -4,13 +4,13 @@ import CallKit
 class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSource {
 
     private let prefixTextField = UITextField()
-    private let starSegmentedControl = UISegmentedControl(items: ["1★", "2★", "3★", "4★", "5★", "6★"])
+    private let starSegmentedControl = UISegmentedControl(items: ["0★", "1★", "2★", "3★", "4★", "5★", "6★"])
     private let tableView = UITableView()
     private var rules: [BlockRule] = []
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        title = "2200W 电话拦截"
+        title = "电话拦截 (测试前删联系人)"
         setupUI()
         loadCurrentRules()
     }
@@ -18,16 +18,13 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
     private func setupUI() {
         view.backgroundColor = .systemGroupedBackground
         
-        // 前缀输入框
-        prefixTextField.placeholder = "输入前缀 (如 8610122)"
+        prefixTextField.placeholder = "输入拦截号码或前缀 (需包含 86)"
         prefixTextField.borderStyle = .roundedRect
         prefixTextField.keyboardType = .numberPad
         prefixTextField.backgroundColor = .white
         
-        // 星级选择
-        starSegmentedControl.selectedSegmentIndex = 4 // 默认 5 星
+        starSegmentedControl.selectedSegmentIndex = 0 // 默认 0 星（精确匹配）
         
-        // 添加按钮
         let addButton = UIButton(type: .system)
         addButton.setTitle("添加拦截规则", for: .normal)
         addButton.backgroundColor = .systemBlue
@@ -35,13 +32,11 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
         addButton.layer.cornerRadius = 8
         addButton.addTarget(self, action: #selector(addRule), for: .touchUpInside)
         
-        // 刷新系统按钮
         let refreshButton = UIButton(type: .system)
         refreshButton.setTitle("同步到系统系统", for: .normal)
         refreshButton.setTitleColor(.systemRed, for: .normal)
         refreshButton.addTarget(self, action: #selector(syncToSystem), for: .touchUpInside)
 
-        // 布局
         let stackView = UIStackView(arrangedSubviews: [prefixTextField, starSegmentedControl, addButton, refreshButton])
         stackView.axis = .vertical
         stackView.spacing = 15
@@ -73,11 +68,11 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
 
     @objc private func addRule() {
         guard let text = prefixTextField.text, let prefix = Int64(text) else {
-            showAlert(title: "错误", message: "请输入正确的数字前缀")
+            showAlert(title: "错误", message: "请输入纯数字。拦截国内号请以 86 开头。")
             return
         }
         
-        let stars = starSegmentedControl.selectedSegmentIndex + 1
+        let stars = starSegmentedControl.selectedSegmentIndex
         let newRule = BlockRule(prefix: prefix, starCount: stars)
         
         rules.append(newRule)
@@ -88,18 +83,15 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
     }
 
     @objc private func syncToSystem() {
-        // 根据 Apple 的规则，Extension 的 ID 必须是 AppID 加 ".Extension"
         let appBundleID = Bundle.main.bundleIdentifier ?? "com.kufei326.CallBlocker"
         let extensionIdentifier = "\(appBundleID).Extension"
-        
-        print("正在尝试同步扩展: \(extensionIdentifier)")
         
         CXCallDirectoryManager.sharedInstance.reloadExtension(withIdentifier: extensionIdentifier) { error in
             DispatchQueue.main.async {
                 if let error = error {
-                    self.showAlert(title: "同步失败", message: "扩展ID: \(extensionIdentifier)\n错误: \(error.localizedDescription)\n\n请先去系统设置开启权限！")
+                    self.showAlert(title: "同步失败", message: "错误: \(error.localizedDescription)\n\n请在系统设置中确保权限已开启。")
                 } else {
-                    self.showAlert(title: "同步成功", message: "2200万级拦截库已生效")
+                    self.showAlert(title: "同步成功", message: "拦截库已成功提交。请确保测试号码不在通讯录中！")
                 }
             }
         }
@@ -119,8 +111,8 @@ class ViewController: UIViewController, UITableViewDelegate, UITableViewDataSour
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath)
         let rule = rules[indexPath.row]
-        let starStr = String(repeating: "★", count: rule.starCount)
-        cell.textLabel?.text = "拦截前缀: \(rule.prefix) (后缀: \(starStr))"
+        let starStr = rule.starCount == 0 ? "精确匹配" : String(repeating: "★", count: rule.starCount)
+        cell.textLabel?.text = "\(rule.prefix) (\(starStr))"
         return cell
     }
     
