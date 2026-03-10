@@ -15,6 +15,8 @@ targets:
         CFBundleIdentifier: com.kufei326.CallBlocker
         CFBundleName: CallBlocker
         UILaunchStoryboardName: LaunchScreen
+    entitlements:
+      path: CallBlocker/CallBlocker.entitlements
     dependencies:
       - target: CallBlockerExtension
     settings:
@@ -37,6 +39,8 @@ targets:
         NSExtension:
           NSExtensionPointIdentifier: "com.apple.callkit.call-directory"
           NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).CallDirectoryHandler"
+    entitlements:
+      path: CallBlockerExtension/CallBlockerExtension.entitlements
     settings:
       CODE_SIGNING_ALLOWED: NO
       CODE_SIGN_STYLE: Manual
