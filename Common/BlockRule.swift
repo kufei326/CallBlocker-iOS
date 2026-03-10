@@ -2,12 +2,9 @@ import Foundation
 
 struct BlockRule: Codable, Equatable {
     let prefix: Int64
-    let starCount: Int // 0-6 星，0 代表精确匹配
-    
+    let starCount: Int
     var range: ClosedRange<Int64> {
-        if starCount == 0 {
-            return prefix...prefix
-        }
+        if starCount == 0 { return prefix...prefix }
         let multiplier = Int64(pow(10.0, Double(starCount)))
         let start = prefix * multiplier
         let end = start + (multiplier - 1)
@@ -17,18 +14,22 @@ struct BlockRule: Codable, Equatable {
 
 class RuleManager {
     static let shared = RuleManager()
-    private let appGroupID = "group.com.kufei326.callblocker" 
+    
+    // 动态获取 App Group ID：group. + 当前 Bundle ID
+    var appGroupID: String {
+        let baseID = Bundle.main.bundleIdentifier?.replacingOccurrences(of: ".Extension", with: "") ?? "com.kufei326.CallBlocker"
+        return "group.\(baseID)"
+    }
     
     func mergeRules(_ rules: [BlockRule]) -> [ClosedRange<Int64>] {
         if rules.isEmpty { return [] }
-        let sortedRanges = rules.map { $0.range }.sorted { $0.lowerBound < $1.lowerBound }
-        var merged = [sortedRanges[0]]
-        for i in 1..<sortedRanges.count {
+        let sorted = rules.map { $0.range }.sorted { $0.lowerBound < $1.lowerBound }
+        var merged = [sorted[0]]
+        for i in 1..<sorted.count {
             let last = merged.last!
-            let current = sortedRanges[i]
+            let current = sorted[i]
             if current.lowerBound <= last.upperBound + 1 {
-                let newUpper = max(last.upperBound, current.upperBound)
-                merged[merged.count - 1] = last.lowerBound...newUpper
+                merged[merged.count - 1] = last.lowerBound...max(last.upperBound, current.upperBound)
             } else {
                 merged.append(current)
             }
