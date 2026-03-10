@@ -1,0 +1,42 @@
+name: CallBlocker
+options:
+  bundleIdPrefix: com.kufei326
+targets:
+  CallBlocker:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: CallBlocker
+      - path: Common
+    info:
+      path: CallBlocker/Info.plist
+      properties:
+        CFBundleIdentifier: com.kufei326.CallBlocker
+        CFBundleName: CallBlocker
+        UILaunchStoryboardName: LaunchScreen
+    dependencies:
+      - target: CallBlockerExtension
+    settings:
+      CODE_SIGNING_ALLOWED: NO
+      CODE_SIGN_STYLE: Manual
+      DEVELOPMENT_TEAM: ""
+
+  CallBlockerExtension:
+    type: app-extension
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: CallBlockerExtension
+      - path: Common
+    info:
+      path: CallBlockerExtension/Info.plist
+      properties:
+        CFBundleIdentifier: com.kufei326.CallBlocker.Extension
+        CFBundleName: CallBlockerExtension
+        NSExtension:
+          NSExtensionPointIdentifier: "com.apple.callkit.call-directory"
+          NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).CallDirectoryHandler"
+    settings:
+      CODE_SIGNING_ALLOWED: NO
+      CODE_SIGN_STYLE: Manual
